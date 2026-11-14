@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "@/app/page";
-import { STORAGE_KEY } from "@/lib/kanban";
+import { INITIAL_CARDS, STORAGE_KEY } from "@/lib/kanban";
 
 // Mounted tests for the board on the App shell: composer, moving, editing, column switch, remove, undo and focus.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -14,6 +14,7 @@ const $ = <T extends Element = HTMLElement>(selector: string, scope: ParentNode 
 const button = (text: string, scope: ParentNode = host) => [...scope.querySelectorAll("button")].find((b) => b.textContent?.trim().startsWith(text)) as HTMLButtonElement;
 const titles = (column: string) => [...host.querySelectorAll<HTMLInputElement>(`[data-col="${column}"] .as-card-title`)].map((i) => i.value);
 const saved = () => JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+const savedOrSeed = () => (localStorage.getItem(STORAGE_KEY) ? saved() : INITIAL_CARDS);
 const press = (el: Element, detail = 0) => act(() => { el.dispatchEvent(new MouseEvent("click", { bubbles: true, detail })); });
 function type(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
   const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -54,6 +55,14 @@ describe("composer", () => {
     expect($(".as-board")!.getAttribute("data-show")).toBe("doing");
     expect(document.activeElement?.textContent).toContain("New card");
     expect(host.textContent).toContain("4 cards · 1 done");
+  });
+
+  it("adding keeps a card another tab saved after this render (no storage event yet)", () => {
+    press(button("New card"));
+    type($<HTMLInputElement>(".as-composer input")!, "From this tab");
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...savedOrSeed(), { id: "other", title: "From the other tab", notes: "", column: "todo" }]));
+    press(button("Add", $(".as-composer")!));
+    expect(saved().map((c: { title: string }) => c.title)).toEqual(expect.arrayContaining(["From the other tab", "From this tab"]));
   });
 
   it("a card without a note stays note-free; Cancel adds nothing", () => {

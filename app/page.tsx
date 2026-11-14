@@ -66,10 +66,14 @@ export default function Home() {
   }
   function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!draft.title.trim()) return;
     const id = createId();
-    const next = addCard(cards, draft.column, draft.title, () => id);
-    if (next === cards) return;
-    setCards(draft.notes.trim() ? updateCard(next, id, { notes: draft.notes.trim() }) : next);
+    const notes = draft.notes.trim();
+    // Build on the store's latest value: another tab may have saved since this render.
+    setCards((current) => {
+      const next = addCard(current, draft.column, draft.title, () => id);
+      return notes ? updateCard(next, id, { notes }) : next;
+    });
     setShown(draft.column);
     setAnnouncement(`Added “${draft.title.trim()}” to ${columnLabel(draft.column)}.`);
     closeComposer();

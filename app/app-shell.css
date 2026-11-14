@@ -280,7 +280,8 @@
 .as-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .as-column { min-width: 0; padding: 12px; border-radius: 18px; background: var(--as-selected); }
 .as-column h2 { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; padding: 0 4px; font-size: 15px; font-weight: 600; }
-.as-column h2 .as-count { color: var(--as-muted); font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+/* --as-grey, not --as-muted: muted is only 4.15:1 on the --as-selected column tint (grey is 6.6:1). */
+.as-column h2 .as-count { color: var(--as-grey); font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .as-cards { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .as-card { border: 1px solid var(--as-line); border-radius: 14px; background: var(--as-surface); box-shadow: var(--as-shadow); }
 .as-card:focus-visible { outline: 3px solid var(--as-focus); outline-offset: 2px; }
@@ -289,15 +290,17 @@
 .as-card-title { min-height: 44px; font-size: 16px; font-weight: 600; }
 /* The note grows with its text (field-sizing) instead of showing an empty box with a resize handle. */
 .as-card-note { min-height: 44px; resize: none; field-sizing: content; color: var(--as-muted); font-size: 14px; line-height: 1.5; }
+/* Without field-sizing (Safari 18 and older) the note cannot grow, so let it be resized and start taller. */
+@supports not (field-sizing: content) { .as-card-note { min-height: 66px; resize: vertical; } }
 .as-card-note::placeholder { color: var(--as-muted); opacity: 1; }
 .as-card-title:hover, .as-card-note:hover { border-color: var(--as-line); }
 .as-card-title:focus-visible, .as-card-note:focus-visible { outline: 3px solid var(--as-focus); outline-offset: 0; color: var(--as-fg); }
 .as-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px; padding: 2px 4px 4px; }
 .as-card-actions .as-icon { margin-left: auto; }
 .as-card-actions .as-plain:not(.as-icon) { padding: 0 10px; font-size: 14px; }
-.as-column-empty { margin: 0; padding: 16px 8px; color: var(--as-muted); font-size: 14px; line-height: 1.5; text-align: center; }
+.as-column-empty { margin: 0; padding: 16px 8px; color: var(--as-grey); font-size: 14px; line-height: 1.5; text-align: center; }
 .as-board-switch { display: none; }
-.as-board-switch .as-count { margin-left: 4px; color: var(--as-muted); font-variant-numeric: tabular-nums; }
+.as-board-switch .as-count { margin-left: 4px; color: var(--as-grey); font-variant-numeric: tabular-nums; }
 @media (max-width: 899px) {
   .as-board-switch { display: grid; width: 100%; margin-bottom: 12px; }
   /* Three short labels fit one row even at 320px, so do not wrap like longer segmented controls. */
