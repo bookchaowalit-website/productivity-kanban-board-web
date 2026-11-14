@@ -1,3 +1,13 @@
+# Board — design
+
+Since 2026-11-14 this app uses the shared App shell (`APP-SHELL.md`) as a board: three columns
+(To do, Doing, Done) of cards with in-place title and note, buttons that move a card one column
+(named after the destination), and remove with undo. Below 900px one column shows at a time,
+picked with a segmented switch that carries each column's count. The earlier "prompt book" theme
+below is kept for history.
+
+---
+
 # Prompt Book — Design direction
 
 ## Product surface

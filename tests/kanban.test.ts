@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   COLUMNS,
+  columnLabel,
+  nextColumn,
+  restoreCard,
   INITIAL_CARDS,
   addCard,
   cardsIn,
@@ -68,5 +71,23 @@ describe("board actions", () => {
     expect(cardsIn(cards, "done").map((c) => c.id)).toEqual(["c"]);
     expect(summarize([...cards, { id: "d", title: "D", notes: "", column: "done" }])).toEqual({ todo: 1, doing: 1, done: 2 });
     expect(COLUMNS.map((c) => c.id)).toEqual(["todo", "doing", "done"]);
+  });
+});
+
+describe("App shell helpers", () => {
+  it("columnLabel and nextColumn", () => {
+    expect(COLUMNS.map((c) => columnLabel(c.id))).toEqual(["To do", "Doing", "Done"]);
+    expect(nextColumn("todo", 1)).toBe("doing");
+    expect(nextColumn("doing", -1)).toBe("todo");
+    expect(nextColumn("todo", -1)).toBeNull();
+    expect(nextColumn("done", 1)).toBeNull();
+  });
+
+  it("restoreCard puts a card back before its neighbour, at the end without one, and never twice", () => {
+    const [a, b] = INITIAL_CARDS;
+    expect(restoreCard([b], a, b.id).map((c) => c.id)).toEqual([a.id, b.id]);
+    expect(restoreCard([b], a, null).map((c) => c.id)).toEqual([b.id, a.id]);
+    expect(restoreCard([b], a, "gone").map((c) => c.id)).toEqual([b.id, a.id]);
+    expect(restoreCard([a, b], a, b.id)).toHaveLength(2);
   });
 });
