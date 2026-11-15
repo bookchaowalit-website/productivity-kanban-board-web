@@ -1,15 +1,15 @@
-// Kanban board ("prompt book") data and pure logic, shared by the page and the MCP route.
-// Three fixed columns; cards move one column at a time with Back / Advance.
+// Kanban board data and pure logic, shared by the page and the MCP route.
+// Three fixed columns (To do, Doing, Done); a card moves one column at a time.
 
 export type ColumnId = "todo" | "doing" | "done";
 export type Card = { id: string; title: string; notes: string; column: ColumnId };
 
 export const STORAGE_KEY = "kanban-board-v2";
 
-export const COLUMNS: { id: ColumnId; label: string; cue: string }[] = [
-  { id: "todo", label: "On deck", cue: "not called" },
-  { id: "doing", label: "In rehearsal", cue: "in motion" },
-  { id: "done", label: "Cleared", cue: "ready to strike" },
+export const COLUMNS: { id: ColumnId; label: string }[] = [
+  { id: "todo", label: "To do" },
+  { id: "doing", label: "Doing" },
+  { id: "done", label: "Done" },
 ];
 
 export const INITIAL_CARDS: Card[] = [
@@ -77,4 +77,20 @@ export function updateCard(cards: Card[], id: string, change: Partial<Pick<Card,
 
 export function deleteCard(cards: Card[], id: string): Card[] {
   return cards.filter((c) => c.id !== id);
+}
+
+export function columnLabel(column: ColumnId): string {
+  return COLUMNS.find((c) => c.id === column)!.label;
+}
+
+/** The column a card lands in when moved one step, or null at either end. */
+export function nextColumn(column: ColumnId, direction: -1 | 1): ColumnId | null {
+  return COLUMNS[COLUMNS.findIndex((c) => c.id === column) + direction]?.id ?? null;
+}
+
+/** Put a removed card back before its old neighbour (or at the end when the neighbour is gone); never twice. */
+export function restoreCard(cards: Card[], card: Card, beforeId: string | null): Card[] {
+  if (cards.some((c) => c.id === card.id)) return cards;
+  const at = beforeId ? cards.findIndex((c) => c.id === beforeId) : -1;
+  return at < 0 ? [...cards, card] : [...cards.slice(0, at), card, ...cards.slice(at)];
 }
