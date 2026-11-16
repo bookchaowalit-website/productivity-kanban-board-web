@@ -149,6 +149,16 @@ describe("remove and undo", () => {
     expect(saved().map((c: { id: string }) => c.id)).toEqual(["1", "2", "3"]);
   });
 
+  it("removing a card another tab already deleted offers no Undo and does not bring it back", () => {
+    const without = savedOrSeed().filter((c: { id: string }) => c.id !== "1");
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(without));
+    press($('[aria-label="Remove Write README"]')!, 1);
+    expect(button("Undo")).toBeUndefined();
+    expect(host.textContent).not.toContain("Removed “Write README”");
+    expect(saved().map((c: { id: string }) => c.id)).not.toContain("1");
+    expect(saved()).toEqual(without);
+  });
+
   it("Escape dismisses; the toast waits while focused and closes six seconds after focus leaves; with the composer open focus goes to it", () => {
     press($('[aria-label="Remove Write README"]')!, 0);
     act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });

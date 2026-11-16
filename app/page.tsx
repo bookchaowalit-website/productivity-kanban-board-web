@@ -95,7 +95,9 @@ export default function Home() {
     // must bring back that latest version in its latest place.
     const current = store.getSnapshot();
     const index = current.findIndex((entry) => entry.id === card.id);
-    const latest = current[index] ?? card;
+    // Already deleted in another tab: nothing to remove, and no Undo that would bring it back.
+    if (index === -1) return;
+    const latest = current[index];
     setCards(deleteCard(current, card.id));
     setRemoved({ card: latest, beforeId: current[index + 1]?.id ?? null, viaKeyboard });
     setAnnouncement(`Removed “${latest.title}”. Undo is available for a few seconds.`);
