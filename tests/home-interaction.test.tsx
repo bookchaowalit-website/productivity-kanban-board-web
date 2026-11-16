@@ -99,6 +99,15 @@ describe("moving and editing", () => {
     expect(titles("doing")).toContain("Write README");
   });
 
+  it("moving uses the column another tab saved after this render, and says so", () => {
+    narrow(false);
+    const elsewhere = savedOrSeed().map((c: { id: string }) => (c.id === "1" ? { ...c, title: "Write README v2", column: "doing" } : c));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(elsewhere));
+    press($('[aria-label="Move Write README to Doing"]')!);
+    expect(saved().find((c: { id: string }) => c.id === "1")).toMatchObject({ title: "Write README v2", column: "done" });
+    expect(host.textContent).toContain("Moved “Write README v2” to Done.");
+  });
+
   it("on a phone, focus goes to the destination column's switch", () => {
     narrow(true);
     press($('[aria-label="Move Ship utility batch to Done"]')!);
