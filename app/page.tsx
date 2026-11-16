@@ -86,10 +86,14 @@ export default function Home() {
     setMoved({ id: card.id, column: to });
   }
   function remove(card: Card, viaKeyboard: boolean) {
-    const index = cards.findIndex((entry) => entry.id === card.id);
-    setCards((current) => deleteCard(current, card.id));
-    setRemoved({ card, beforeId: cards[index + 1]?.id ?? null, viaKeyboard });
-    setAnnouncement(`Removed “${card.title}”. Undo is available for a few seconds.`);
+    // Read the store, not this render: another tab may have edited the card since, and Undo
+    // must bring back that latest version in its latest place.
+    const current = store.getSnapshot();
+    const index = current.findIndex((entry) => entry.id === card.id);
+    const latest = current[index] ?? card;
+    setCards(deleteCard(current, card.id));
+    setRemoved({ card: latest, beforeId: current[index + 1]?.id ?? null, viaKeyboard });
+    setAnnouncement(`Removed “${latest.title}”. Undo is available for a few seconds.`);
   }
   function closeToast() {
     setRemoved(null);
