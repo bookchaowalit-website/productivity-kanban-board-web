@@ -79,10 +79,15 @@ export default function Home() {
     closeComposer();
   }
   function move(card: Card, direction: -1 | 1) {
-    const to = nextColumn(card.column, direction);
+    // Like remove: another tab may have moved or renamed the card since this render, so the
+    // destination, the announcement and the focus target come from the store's latest value.
+    const current = store.getSnapshot();
+    const latest = current.find((entry) => entry.id === card.id);
+    if (!latest) return;
+    const to = nextColumn(latest.column, direction);
     if (!to) return;
-    setCards((current) => moveCard(current, card.id, direction));
-    setAnnouncement(`Moved “${card.title}” to ${columnLabel(to)}.`);
+    setCards(moveCard(current, card.id, direction));
+    setAnnouncement(`Moved “${latest.title}” to ${columnLabel(to)}.`);
     setMoved({ id: card.id, column: to });
   }
   function remove(card: Card, viaKeyboard: boolean) {
