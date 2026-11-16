@@ -131,6 +131,15 @@ describe("remove and undo", () => {
     expect(host.textContent).toContain("Nothing done yet.");
   });
 
+  it("Undo brings back the version another tab saved after this render, not the stale one", () => {
+    const edited = savedOrSeed().map((c: { id: string; title: string }) => (c.title === "Write README" ? { ...c, title: "Write README v2", notes: "from the other tab" } : c));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(edited));
+    press($('[aria-label="Remove Write README"]')!, 1);
+    press(button("Undo"));
+    expect(saved().find((c: { id: string }) => c.id === "1")).toMatchObject({ title: "Write README v2", notes: "from the other tab" });
+    expect(saved().map((c: { id: string }) => c.id)).toEqual(["1", "2", "3"]);
+  });
+
   it("Escape dismisses; the toast waits while focused and closes six seconds after focus leaves; with the composer open focus goes to it", () => {
     press($('[aria-label="Remove Write README"]')!, 0);
     act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
