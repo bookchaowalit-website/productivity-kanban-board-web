@@ -318,3 +318,6 @@
   .as-board[data-show="doing"] .as-column:not([data-col="doing"]),
   .as-board[data-show="done"] .as-column:not([data-col="done"]) { display: none; }
 }
+
+/* The top bar is sticky: keep skip-link targets and keyboard-focused controls clear of it when the page scrolls to them. */
+html { scroll-padding-top: 64px; scroll-padding-bottom: 16px; }
