@@ -127,6 +127,14 @@ describe("moving and editing", () => {
     expect(saved().find((c: { id: string }) => c.id === "1").title).toBe("Named elsewhere");
   });
 
+  it("tabbing through a title without editing it writes nothing to storage", () => {
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    const title = $<HTMLInputElement>('[data-col="todo"] .as-card-title')!;
+    act(() => { title.focus(); });
+    act(() => { title.dispatchEvent(new FocusEvent("focusout", { bubbles: true })); });
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
   it("on a phone, focus goes to the destination column's switch", () => {
     narrow(true);
     press($('[aria-label="Move Ship utility batch to Done"]')!);

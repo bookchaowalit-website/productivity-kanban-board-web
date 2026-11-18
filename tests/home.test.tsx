@@ -1,6 +1,6 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import Home from "@/app/page";
+import Home, { metadata } from "@/app/page";
 
 describe("home page", () => {
   it("renders the three columns, the sample cards, their move buttons and the local-only note", () => {
@@ -13,5 +13,9 @@ describe("home page", () => {
     expect(html).toContain('aria-label="Move Write README to Doing"');
     expect(html).toContain('aria-label="Move Ship utility batch back to To do"');
     expect(html).toContain("Saved in this browser only");
+  });
+
+  it("declares its canonical URL on the board page itself, so other routes do not inherit it", () => {
+    expect(metadata.alternates?.canonical).toBe("/");
   });
 });

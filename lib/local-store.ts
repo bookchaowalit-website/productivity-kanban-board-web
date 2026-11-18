@@ -63,7 +63,11 @@ export function createLocalStore<T>(
     getSnapshot,
     getServerSnapshot: () => empty,
     set(next) {
-      const value = typeof next === "function" ? (next as (prev: T) => T)(getSnapshot()) : next;
+      const prev = getSnapshot();
+      const value = typeof next === "function" ? (next as (prev: T) => T)(prev) : next;
+      // Nothing changed (e.g. leaving a title field untouched): don't write, so a clean board stays unsaved
+      // and another tab's newer save is not overwritten with this tab's copy.
+      if (Object.is(value, prev)) return;
       memory = serialize(value);
       try {
         storage()?.setItem(key, memory);
