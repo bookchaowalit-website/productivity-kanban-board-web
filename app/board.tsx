@@ -10,7 +10,7 @@ const TONE: Record<ColumnId, Tone> = { todo: "grey", doing: "amber", done: "gree
 const EMPTY: Record<ColumnId, string> = { todo: "Nothing to do. Press New card to add one.", doing: "Nothing in progress. Start a card from To do.", done: "Nothing done yet." };
 // Below this width the board shows one column at a time, picked with the segmented control.
 const NARROW = "(max-width: 899px)";
-type RemovedEntry = { card: Card; beforeId: string | null };
+type RemovedEntry = { card: Card; beforeId: string | null; afterId: string | null; index: number };
 type RemovedBatch = { items: RemovedEntry[]; viaKeyboard: boolean };
 const removedLabel = (items: RemovedEntry[]) => (items.length === 1 ? `Removed “${items[0].card.title}”` : `Removed ${items.length} cards`);
 
@@ -95,15 +95,19 @@ export default function Board() {
     setMoved({ id: card.id, column: to });
   }
   function remove(card: Card, viaKeyboard: boolean) {
-    // Read the store, not this render: another tab may have edited the card since, and Undo
-    // must bring back that latest version in its latest place.
-    const current = store.getSnapshot();
-    const index = current.findIndex((entry) => entry.id === card.id);
-    // Already deleted in another tab: nothing to remove, and no Undo that would bring it back.
-    if (index === -1) return;
-    setCards(deleteCard(current, card.id));
+    // Find, record and delete inside one store update, on the store's latest value: another tab may have edited this
+    // card (Undo must bring back that version, in its latest place) or saved other cards (which must survive).
+    let entry: RemovedEntry | undefined;
+    setCards((current) => {
+      const index = current.findIndex((item) => item.id === card.id);
+      // Already deleted in another tab: nothing to remove, and no Undo that would bring it back.
+      if (index === -1) return current;
+      entry = { card: current[index], beforeId: current[index + 1]?.id ?? null, afterId: current[index - 1]?.id ?? null, index };
+      return deleteCard(current, card.id);
+    });
+    if (!entry) return;
     // Join the batch of removals still inside the Undo window.
-    const items = [...(removedRef.current?.items ?? []), { card: current[index], beforeId: current[index + 1]?.id ?? null }];
+    const items = [...(removedRef.current?.items ?? []), entry];
     setRemoved({ items, viaKeyboard });
     setAnnouncement(`${removedLabel(items)}. Undo is available for a few seconds.`);
   }
@@ -116,7 +120,7 @@ export default function Board() {
     const items = removedRef.current?.items;
     if (!items?.length) return;
     // Latest removal first, so each card goes back before the card that followed it at the time.
-    setCards((current) => items.reduceRight((list, { card, beforeId }) => restoreCard(list, card, beforeId), current));
+    setCards((current) => items.reduceRight((list, { card, beforeId, afterId, index }) => restoreCard(list, card, beforeId, afterId, index), current));
     setAnnouncement(items.length === 1 ? `Restored “${items[0].card.title}”.` : `Restored ${items.length} cards.`);
     closeToast();
   }

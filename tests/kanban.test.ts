@@ -87,6 +87,14 @@ describe("App shell helpers", () => {
     expect(nextColumn("done", 1)).toBeNull();
   });
 
+  it("restoreCard falls back to the old previous card, then the old index, so cards added since stay after it", () => {
+    const [a, b] = INITIAL_CARDS;
+    const added = { ...b, id: "new" };
+    expect(restoreCard([a, added], b, null, a.id).map((c) => c.id)).toEqual([a.id, b.id, "new"]);
+    expect(restoreCard([added], a, null, null, 0).map((c) => c.id)).toEqual([a.id, "new"]);
+    expect(restoreCard([added], a, null, "gone", 7).map((c) => c.id)).toEqual(["new", a.id]);
+  });
+
   it("restoreCard puts a card back before its neighbour, at the end without one, and never twice", () => {
     const [a, b] = INITIAL_CARDS;
     expect(restoreCard([b], a, b.id).map((c) => c.id)).toEqual([a.id, b.id]);

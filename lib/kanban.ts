@@ -97,8 +97,13 @@ export function nextColumn(column: ColumnId, direction: -1 | 1): ColumnId | null
 }
 
 /** Put a removed card back before its old neighbour (or at the end when the neighbour is gone); never twice. */
-export function restoreCard(cards: Card[], card: Card, beforeId: string | null): Card[] {
+export function restoreCard(cards: Card[], card: Card, beforeId: string | null, afterId: string | null = null, index?: number): Card[] {
   if (cards.some((c) => c.id === card.id)) return cards;
-  const at = beforeId ? cards.findIndex((c) => c.id === beforeId) : -1;
-  return at < 0 ? [...cards, card] : [...cards.slice(0, at), card, ...cards.slice(at)];
+  // Before the old next card; else right after the old previous card (so cards added since stay after it); else at
+  // its old index; else at the end.
+  const before = beforeId ? cards.findIndex((c) => c.id === beforeId) : -1;
+  const after = before < 0 && afterId ? cards.findIndex((c) => c.id === afterId) : -1;
+  const fallback = index === undefined ? cards.length : Math.min(Math.max(index, 0), cards.length);
+  const at = before >= 0 ? before : after >= 0 ? after + 1 : fallback;
+  return [...cards.slice(0, at), card, ...cards.slice(at)];
 }
