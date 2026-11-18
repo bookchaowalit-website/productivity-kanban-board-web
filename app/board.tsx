@@ -44,6 +44,9 @@ export default function Board() {
   const titleRef = useRef<HTMLInputElement>(null);
   const newRef = useRef<HTMLButtonElement>(null);
   const undoRef = useRef<HTMLButtonElement>(null);
+  // Card titles this tab typed, by card id: leaving a title only fills in "Untitled" for an edit made here, and only
+  // while the saved title is still what this tab wrote (another tab may be mid-edit on the same card).
+  const typedTitles = useRef(new Map<string, string>());
   const wasComposing = useRef(false);
   const done = cardsIn(cards, "done").length;
 
@@ -110,6 +113,13 @@ export default function Board() {
     const items = [...(removedRef.current?.items ?? []), entry];
     setRemoved({ items, viaKeyboard });
     setAnnouncement(`${removedLabel(items)}. Undo is available for a few seconds.`);
+  }
+  function leaveTitle(id: string) {
+    const typed = typedTitles.current.get(id);
+    typedTitles.current.delete(id);
+    // Not edited in this tab since focus: nothing to fix up, and nothing to write.
+    if (typed === undefined) return;
+    setCards((current) => (typed.trim() === "" && current.find((entry) => entry.id === id)?.title === typed ? updateCard(current, id, { title: "Untitled" }) : current));
   }
   function closeToast() {
     setRemoved(null);
@@ -187,7 +197,7 @@ export default function Board() {
                     {list.map((card, index) => (
                       <li className="as-card" id={`card-${card.id}`} key={card.id} tabIndex={-1} aria-label={card.title}>
                         <div className="as-card-body">
-                          <input className="as-card-title" aria-label={`Title of card ${index + 1} in ${column.label}`} value={card.title} onChange={(event) => setCards((current) => updateCard(current, card.id, { title: event.target.value }))} onBlur={() => setCards((current) => (current.find((entry) => entry.id === card.id)?.title.trim() === "" ? updateCard(current, card.id, { title: "Untitled" }) : current))} />
+                          <input className="as-card-title" aria-label={`Title of card ${index + 1} in ${column.label}`} value={card.title} onChange={(event) => { typedTitles.current.set(card.id, event.target.value); setCards((current) => updateCard(current, card.id, { title: event.target.value })); }} onBlur={() => leaveTitle(card.id)} />
                           <textarea className="as-card-note" aria-label={`Note for ${card.title}`} rows={1} placeholder="Add a note" value={card.notes} onChange={(event) => setCards((current) => updateCard(current, card.id, { notes: event.target.value }))} />
                         </div>
                         <div className="as-card-actions">

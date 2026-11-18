@@ -135,6 +135,18 @@ describe("moving and editing", () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
+  it("tabbing through a title this tab did not edit never writes, even when another tab saved it empty mid-edit", () => {
+    const elsewhere = INITIAL_CARDS.map((c) => (c.id === "1" ? { ...c, title: "" } : c));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(elsewhere));
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const title = $<HTMLInputElement>('[data-col="todo"] .as-card-title')!;
+    act(() => { title.focus(); });
+    act(() => { title.dispatchEvent(new FocusEvent("focusout", { bubbles: true })); });
+    expect(setItem).not.toHaveBeenCalled();
+    setItem.mockRestore();
+    expect(saved().find((c: { id: string }) => c.id === "1").title).toBe("");
+  });
+
   it("on a phone, focus goes to the destination column's switch", () => {
     narrow(true);
     press($('[aria-label="Move Ship utility batch to Done"]')!);
