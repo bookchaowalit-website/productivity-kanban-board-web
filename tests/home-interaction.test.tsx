@@ -147,6 +147,27 @@ describe("moving and editing", () => {
     expect(saved().find((c: { id: string }) => c.id === "1").title).toBe("");
   });
 
+  it("moving a card focuses it without jumping the page: preventScroll, then scrollIntoView nearest (wide only)", () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    const scroll = vi.fn();
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { value: scroll, configurable: true, writable: true });
+    press($('[aria-label="Move Write README to Doing"]')!, 1);
+    expect(document.activeElement?.id).toBe("card-1");
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
+    expect(scroll.mock.contexts.at(-1)).toBe(document.getElementById("card-1"));
+    scroll.mockClear();
+    narrow(true);
+    press($('[aria-label="Move Ship utility batch to Done"]')!, 1);
+    expect(document.activeElement?.id).toBe("show-done");
+    expect(focus).toHaveBeenLastCalledWith({ preventScroll: true });
+    expect(scroll).not.toHaveBeenCalled();
+    focus.mockRestore();
+    if (original) Object.defineProperty(HTMLElement.prototype, "scrollIntoView", original);
+    else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
   it("on a phone, focus goes to the destination column's switch", () => {
     narrow(true);
     press($('[aria-label="Move Ship utility batch to Done"]')!);

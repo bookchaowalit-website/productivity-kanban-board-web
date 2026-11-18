@@ -31,6 +31,20 @@ A portfolio visitor, or one person in one browser, who wants a small to-do / doi
 - No account, collaborators, sync, attachments or export. Clearing site data removes everything.
 - No product analytics beyond Vercel Analytics.
 
+## Known limits
+
+Two tabs of the same browser share one saved board. Writes build on the latest saved data and skip when nothing
+changed, but a tab only redraws when the browser delivers the `storage` event. So:
+
+- **Undo lasts 6 seconds** (one batch for every removal in the window; paused while focus is in the toast). After that
+  a removed card is gone; there is no trash (App shell design).
+- **Moving a card another tab just deleted** moves nothing, but the board still announces the move and, on a phone,
+  focuses the destination column's switch.
+- **Same title edited in two tabs:** the last write wins. Leaving a title only fills in "Untitled" for an empty title
+  typed in this tab that is still the saved value.
+- **On a phone the board shows one column at a time:** an empty Done column only says "Nothing done yet." and does not
+  explain that cards move there from Doing.
+
 ## Live URL and deploy state
 
 - Live: https://kanban-board.bookchaowalit.com (HTTP 200 on 2026-10-23).

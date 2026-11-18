@@ -63,11 +63,14 @@ export default function Board() {
     return () => window.clearTimeout(timer);
   }, [removed, toastFocused]);
   // A moved card's buttons leave with it: follow the card on a wide board; on a phone, where its new column is
-  // hidden, focus that column's switch instead.
+  // hidden, focus that column's switch instead. Focus never jumps the page: preventScroll, then (wide board) only
+  // the smallest scroll that brings the moved card into view, so a tap deep in a column keeps the user's place.
   useEffect(() => {
     if (!moved) return;
     const narrow = typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches;
-    document.getElementById(narrow ? `show-${moved.column}` : `card-${moved.id}`)?.focus();
+    const target = document.getElementById(narrow ? `show-${moved.column}` : `card-${moved.id}`);
+    target?.focus({ preventScroll: true });
+    if (!narrow) target?.scrollIntoView?.({ block: "nearest" });
   }, [moved]);
 
   function closeComposer() {
