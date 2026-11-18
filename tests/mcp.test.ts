@@ -21,6 +21,8 @@ describe("MCP route", () => {
     const res = await rpc({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_sample_board" } });
     const { result } = await res.json();
     expect(result.columns).toEqual(COLUMNS);
+    // The page does not show `cue`, but MCP clients read columns[].cue, so it must stay in the output.
+    expect(result.columns.map((c: { id: string; cue: string }) => [c.id, c.cue])).toEqual([["todo", "not called"], ["doing", "in motion"], ["done", "ready to strike"]]);
     expect(result.cards).toEqual(INITIAL_CARDS);
   });
 

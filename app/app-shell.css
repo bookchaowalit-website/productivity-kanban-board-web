@@ -293,14 +293,14 @@
 .as-card { border: 1px solid var(--as-line); border-radius: 14px; background: var(--as-surface); box-shadow: var(--as-shadow); }
 .as-card:focus-visible { outline: 3px solid var(--as-focus); outline-offset: 2px; }
 .as-card-body { display: grid; gap: 2px; padding: 8px 8px 0; }
-.as-card-title, .as-card-note { width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: 8px; background: transparent; }
+/* Editable fields show a 3:1 edge at rest (touch screens have no hover), like every other input. */
+.as-card-title, .as-card-note { width: 100%; padding: 6px 8px; border: 1px solid var(--as-field-line); border-radius: 8px; background: var(--as-surface); }
 .as-card-title { min-height: 44px; font-size: 16px; font-weight: 600; }
 /* The note grows with its text (field-sizing) instead of showing an empty box with a resize handle. */
 .as-card-note { min-height: 44px; resize: none; field-sizing: content; color: var(--as-muted); font-size: 14px; line-height: 1.5; }
 /* Without field-sizing (Safari 18 and older) the note cannot grow, so let it be resized and start taller. */
 @supports not (field-sizing: content) { .as-card-note { min-height: 66px; resize: vertical; } }
 .as-card-note::placeholder { color: var(--as-muted); opacity: 1; }
-.as-card-title:hover, .as-card-note:hover { border-color: var(--as-line); }
 .as-card-title:focus-visible, .as-card-note:focus-visible { outline: 3px solid var(--as-focus); outline-offset: 0; color: var(--as-fg); }
 .as-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px; padding: 2px 4px 4px; }
 .as-card-actions .as-icon { margin-left: auto; }

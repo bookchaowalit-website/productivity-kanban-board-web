@@ -99,13 +99,32 @@ describe("moving and editing", () => {
     expect(titles("doing")).toContain("Write README");
   });
 
-  it("moving uses the column another tab saved after this render, and says so", () => {
+  it("moving goes to the column the button names, even if another tab moved the card since this render", () => {
     narrow(false);
     const elsewhere = savedOrSeed().map((c: { id: string }) => (c.id === "1" ? { ...c, title: "Write README v2", column: "doing" } : c));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(elsewhere));
     press($('[aria-label="Move Write README to Doing"]')!);
-    expect(saved().find((c: { id: string }) => c.id === "1")).toMatchObject({ title: "Write README v2", column: "done" });
-    expect(host.textContent).toContain("Moved “Write README v2” to Done.");
+    // Already in Doing: it stays there (no extra step to Done) and the done count is unchanged.
+    expect(saved().find((c: { id: string }) => c.id === "1")).toMatchObject({ title: "Write README v2", column: "doing" });
+    expect(host.textContent).toContain("3 cards · 1 done");
+    expect(host.textContent).toContain("Moved “Write README v2” to Doing.");
+  });
+
+  it("a button whose card another tab moved two columns on still sends it to the named column", () => {
+    narrow(false);
+    const elsewhere = savedOrSeed().map((c: { id: string }) => (c.id === "1" ? { ...c, column: "done" } : c));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(elsewhere));
+    press($('[aria-label="Move Write README to Doing"]')!);
+    expect(saved().find((c: { id: string }) => c.id === "1")).toMatchObject({ column: "doing" });
+  });
+
+  it("leaving a title field does not overwrite a title another tab saved since this render", () => {
+    const title = $<HTMLInputElement>('[data-col="todo"] .as-card-title')!;
+    type(title, "");
+    const elsewhere = saved().map((c: { id: string }) => (c.id === "1" ? { ...c, title: "Named elsewhere" } : c));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(elsewhere));
+    act(() => { title.dispatchEvent(new FocusEvent("focusout", { bubbles: true })); });
+    expect(saved().find((c: { id: string }) => c.id === "1").title).toBe("Named elsewhere");
   });
 
   it("on a phone, focus goes to the destination column's switch", () => {
@@ -174,5 +193,33 @@ describe("remove and undo", () => {
     press(button("New card"));
     press(button("Undo"));
     expect(document.activeElement).toBe($(".as-composer input"));
+  });
+
+  it("removals inside the Undo window form one batch; Undo restores all in their places", () => {
+    vi.useFakeTimers();
+    press($('[aria-label="Remove Write README"]')!, 0);
+    act(() => { vi.advanceTimersByTime(4000); });
+    press($('[aria-label="Remove Ship utility batch"]')!, 0);
+    expect(saved().map((c: { id: string }) => c.id)).toEqual(["3"]);
+    expect($(".as-toast span")!.textContent).toBe("Removed 2 cards");
+    expect(host.querySelector('[role="status"]')!.textContent).toContain("Removed 2 cards");
+    expect(button("Undo").getAttribute("aria-label")).toBe("Undo remove of 2 cards");
+    // The second removal restarted the timer: 4 s + 4 s after the first, the toast is still open.
+    act(() => { button("New card").focus(); });
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect($(".as-toast")).not.toBeNull();
+    press(button("Undo"));
+    expect(saved().map((c: { id: string }) => c.id)).toEqual(["1", "2", "3"]);
+    expect(host.querySelector('[role="status"]')!.textContent).toBe("Restored 2 cards.");
+  });
+});
+
+describe("field edges", () => {
+  it("card title and note fields show the 3:1 field edge at rest, not only on hover or focus", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/app/app-shell.css`, "utf8");
+    const rule = css.slice(css.indexOf(".as-card-title, .as-card-note {"), css.indexOf("}", css.indexOf(".as-card-title, .as-card-note {")));
+    expect(rule).toContain("border: 1px solid var(--as-field-line)");
+    expect(rule).not.toContain("transparent");
   });
 });

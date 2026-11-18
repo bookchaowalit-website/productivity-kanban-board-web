@@ -9,6 +9,7 @@ import {
   cardsIn,
   deleteCard,
   moveCard,
+  moveCardTo,
   parseCards,
   serializeCards,
   summarize,
@@ -53,6 +54,9 @@ describe("board actions", () => {
     expect(moveCard(cards, "b", -1)[1].column).toBe("todo");
     expect(moveCard(cards, "a", -1)[0]).toBe(cards[0]);
     expect(moveCard(cards, "c", 1)[2]).toBe(cards[2]);
+    expect(moveCardTo(cards, "a", "done")[0].column).toBe("done");
+    expect(moveCardTo(cards, "b", "doing")).toBe(cards);
+    expect(moveCardTo(cards, "missing", "done")).toBe(cards);
   });
 
   it("adds a trimmed card to the end of a column and ignores blanks", () => {

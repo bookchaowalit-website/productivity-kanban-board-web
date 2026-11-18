@@ -6,10 +6,11 @@ export type Card = { id: string; title: string; notes: string; column: ColumnId 
 
 export const STORAGE_KEY = "kanban-board-v2";
 
-export const COLUMNS: { id: ColumnId; label: string }[] = [
-  { id: "todo", label: "To do" },
-  { id: "doing", label: "Doing" },
-  { id: "done", label: "Done" },
+// `cue` is not shown in the page, but the MCP tool get_sample_board has always returned it, so it stays.
+export const COLUMNS: { id: ColumnId; label: string; cue: string }[] = [
+  { id: "todo", label: "To do", cue: "not called" },
+  { id: "doing", label: "Doing", cue: "in motion" },
+  { id: "done", label: "Done", cue: "ready to strike" },
 ];
 
 export const INITIAL_CARDS: Card[] = [
@@ -63,6 +64,13 @@ export function moveCard(cards: Card[], id: string, direction: -1 | 1): Card[] {
     const target = COLUMNS[COLUMNS.findIndex((c) => c.id === card.column) + direction];
     return target ? { ...card, column: target.id } : card;
   });
+}
+
+/** Put a card in a named column (a no-op when it is already there or the card is gone). */
+export function moveCardTo(cards: Card[], id: string, column: ColumnId): Card[] {
+  return cards.some((card) => card.id === id && card.column !== column)
+    ? cards.map((card) => (card.id === id ? { ...card, column } : card))
+    : cards;
 }
 
 export function addCard(cards: Card[], column: ColumnId, title: string, makeId: () => string): Card[] {
