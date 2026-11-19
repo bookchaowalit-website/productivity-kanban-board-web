@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  reorderCard,
   COLUMNS,
   columnLabel,
   nextColumn,
@@ -101,5 +102,23 @@ describe("App shell helpers", () => {
     expect(restoreCard([b], a, null).map((c) => c.id)).toEqual([b.id, a.id]);
     expect(restoreCard([b], a, "gone").map((c) => c.id)).toEqual([b.id, a.id]);
     expect(restoreCard([a, b], a, b.id)).toHaveLength(2);
+  });
+});
+
+describe("reorderCard", () => {
+  const cards = [
+    { id: "a", title: "A", notes: "", column: "todo" as const },
+    { id: "x", title: "X", notes: "", column: "doing" as const },
+    { id: "b", title: "B", notes: "", column: "todo" as const },
+  ];
+  it("swaps with the neighbour in the same column, skipping other columns", () => {
+    expect(reorderCard(cards, "b", -1).map((c) => c.id)).toEqual(["b", "x", "a"]);
+    expect(reorderCard(cards, "a", 1).map((c) => c.id)).toEqual(["b", "x", "a"]);
+  });
+  it("returns the same array at the ends of a column or for an unknown card", () => {
+    expect(reorderCard(cards, "a", -1)).toBe(cards);
+    expect(reorderCard(cards, "b", 1)).toBe(cards);
+    expect(reorderCard(cards, "x", 1)).toBe(cards);
+    expect(reorderCard(cards, "nope", 1)).toBe(cards);
   });
 });

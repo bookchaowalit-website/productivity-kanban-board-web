@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { AppFoot, AppTop, PlusIcon, type Tone } from "@/components/app-shell";
-import { COLUMNS, STORAGE_KEY, addCard, cardsIn, columnLabel, deleteCard, moveCardTo, nextColumn, parseCards, restoreCard, serializeCards, updateCard, type Card, type ColumnId } from "@/lib/kanban";
+import { COLUMNS, STORAGE_KEY, addCard, cardsIn, columnLabel, deleteCard, moveCardTo, nextColumn, parseCards, reorderCard, restoreCard, serializeCards, updateCard, type Card, type ColumnId } from "@/lib/kanban";
 import { createLocalStore, useLocalStore } from "@/lib/local-store";
 
 const store = createLocalStore(STORAGE_KEY, parseCards, serializeCards);
@@ -23,6 +23,9 @@ function createId(): string {
 const XIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
 );
+const Arrow = ({ up }: { up?: boolean }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={up ? "M12 19V5M6 11l6-6 6 6" : "M12 5v14M6 13l6 6 6-6"} /></svg>
+);
 const Chevron = ({ back }: { back?: boolean }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={back ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"} /></svg>
 );
@@ -39,6 +42,10 @@ export default function Board() {
   const removedRef = useRef<RemovedBatch | null>(null);
   const setRemoved = (batch: RemovedBatch | null) => { removedRef.current = batch; setRemovedState(batch); };
   const [toastFocused, setToastFocused] = useState(false);
+  const [toastHovered, setToastHovered] = useState(false);
+  const toastRef = useRef<HTMLDivElement>(null);
+  // After Move up/down, keep focus on the same card's button (or its other arrow once it reaches the end).
+  const [reordered, setReordered] = useState<{ id: string; direction: -1 | 1; seq: number } | null>(null);
   const [moved, setMoved] = useState<{ id: string; column: ColumnId } | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
@@ -56,12 +63,33 @@ export default function Board() {
     wasComposing.current = composing;
   }, [composing]);
   useEffect(() => { if (removed?.viaKeyboard) undoRef.current?.focus(); }, [removed]);
-  // The toast closes 6 s after the latest removal (each removal restarts it), but never while it holds focus.
+  // The toast closes 6 s after the latest removal (each removal restarts it), but never while it holds focus or a
+  // mouse pointer rests on it (WCAG 2.2.1): leaving it starts a fresh 6 s.
   useEffect(() => {
-    if (!removed || toastFocused) return;
-    const timer = window.setTimeout(() => { removedRef.current = null; setRemovedState(null); }, 6000);
+    if (!removed || toastFocused || toastHovered) return;
+    const timer = window.setTimeout(() => { removedRef.current = null; setRemovedState(null); setToastHovered(false); }, 6000);
     return () => window.clearTimeout(timer);
-  }, [removed, toastFocused]);
+  }, [removed, toastFocused, toastHovered]);
+  // While the toast shows, reserve its height (plus its 24px offset and a gap) at the bottom of the page and in
+  // scroll-padding, so a control focused behind it scrolls clear instead of staying hidden (WCAG 2.4.11).
+  const toastShown = removed !== null;
+  useLayoutEffect(() => {
+    const toast = toastRef.current;
+    if (!toastShown || !toast) return;
+    const rootStyle = document.documentElement.style;
+    const reserve = () => rootStyle.setProperty("--as-toast-space", `${toast.offsetHeight + 32}px`);
+    reserve();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(reserve) : null;
+    observer?.observe(toast);
+    return () => { observer?.disconnect(); rootStyle.removeProperty("--as-toast-space"); };
+  }, [toastShown]);
+  useEffect(() => {
+    if (!reordered) return;
+    const same = document.getElementById(`${reordered.direction < 0 ? "up" : "down"}-${reordered.id}`) as HTMLButtonElement | null;
+    const other = document.getElementById(`${reordered.direction < 0 ? "down" : "up"}-${reordered.id}`) as HTMLButtonElement | null;
+    (same && !same.disabled ? same : other)?.focus({ preventScroll: true });
+    (same ?? other)?.scrollIntoView?.({ block: "nearest" });
+  }, [reordered]);
   // A moved card's buttons leave with it: follow the card on a wide board; on a phone, where its new column is
   // hidden, focus that column's switch instead. Focus never jumps the page: preventScroll, then (wide board) only
   // the smallest scroll that brings the moved card into view, so a tap deep in a column keeps the user's place.
@@ -100,6 +128,15 @@ export default function Board() {
     setAnnouncement(`Moved “${latest.title}” to ${columnLabel(to)}.`);
     setMoved({ id: card.id, column: to });
   }
+  function reorder(card: Card, direction: -1 | 1) {
+    const latest = store.getSnapshot().find((entry) => entry.id === card.id);
+    if (!latest) return;
+    setCards((current) => reorderCard(current, card.id, direction));
+    const list = cardsIn(store.getSnapshot(), latest.column);
+    const position = list.findIndex((entry) => entry.id === card.id) + 1;
+    setAnnouncement(`Moved “${latest.title}” ${direction < 0 ? "up" : "down"}, ${position} of ${list.length} in ${columnLabel(latest.column)}.`);
+    setReordered({ id: card.id, direction, seq: Date.now() });
+  }
   function remove(card: Card, viaKeyboard: boolean) {
     // Find, record and delete inside one store update, on the store's latest value: another tab may have edited this
     // card (Undo must bring back that version, in its latest place) or saved other cards (which must survive).
@@ -127,6 +164,7 @@ export default function Board() {
   function closeToast() {
     setRemoved(null);
     setToastFocused(false);
+    setToastHovered(false);
     (newRef.current ?? titleRef.current)?.focus();
   }
   function undo() {
@@ -157,8 +195,9 @@ export default function Board() {
         {composing ? (
           <form className="as-composer" onSubmit={add} aria-label="New card">
             <label className="as-field">Title
-              <input ref={titleRef} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="What needs doing?" autoComplete="off" />
+              <input ref={titleRef} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="What needs doing?" autoComplete="off" aria-describedby="title-hint" />
             </label>
+            <span id="title-hint" className="as-hint as-field-hint">{draft.title.trim() ? "Add puts the card at the bottom of its column." : "A title is required to add the card."}</span>
             <label className="as-field">Note
               <textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder="Optional detail" />
             </label>
@@ -198,7 +237,7 @@ export default function Board() {
                 {list.length ? (
                   <ul className="as-cards">
                     {list.map((card, index) => (
-                      <li className="as-card" id={`card-${card.id}`} key={card.id} tabIndex={-1} aria-label={card.title}>
+                      <li className="as-card" id={`card-${card.id}`} key={card.id} tabIndex={-1}>
                         <div className="as-card-body">
                           <input className="as-card-title" aria-label={`Title of card ${index + 1} in ${column.label}`} value={card.title} onChange={(event) => { typedTitles.current.set(card.id, event.target.value); setCards((current) => updateCard(current, card.id, { title: event.target.value })); }} onBlur={() => leaveTitle(card.id)} />
                           <textarea className="as-card-note" aria-label={`Note for ${card.title}`} rows={1} placeholder="Add a note" value={card.notes} onChange={(event) => setCards((current) => updateCard(current, card.id, { notes: event.target.value }))} />
@@ -206,7 +245,11 @@ export default function Board() {
                         <div className="as-card-actions">
                           {back ? <button type="button" className="as-plain" aria-label={`Move ${card.title} back to ${columnLabel(back)}`} onClick={() => move(card, back)}><Chevron back />{columnLabel(back)}</button> : null}
                           {forward ? <button type="button" className="as-plain" aria-label={`Move ${card.title} to ${columnLabel(forward)}`} onClick={() => move(card, forward)}>{columnLabel(forward)}<Chevron /></button> : null}
-                          <button type="button" className="as-plain as-icon" aria-label={`Remove ${card.title}`} onClick={(event) => remove(card, event.detail === 0)}><XIcon /></button>
+                          <span className="as-card-tools">
+                            <button type="button" id={`up-${card.id}`} className="as-plain as-icon as-order" aria-label={`Move ${card.title} up`} disabled={index === 0} onClick={() => reorder(card, -1)}><Arrow up /></button>
+                            <button type="button" id={`down-${card.id}`} className="as-plain as-icon as-order" aria-label={`Move ${card.title} down`} disabled={index === list.length - 1} onClick={() => reorder(card, 1)}><Arrow /></button>
+                            <button type="button" className="as-plain as-icon" aria-label={`Remove ${card.title}`} onClick={(event) => remove(card, event.detail === 0)}><XIcon /></button>
+                          </span>
                         </div>
                       </li>
                     ))}
@@ -217,13 +260,16 @@ export default function Board() {
           })}
         </div>
 
-        <p className="as-note">Saved in this browser only. No account, no sync, no collaborators.</p>
+        <p className="as-note">Saved in this browser only. No account, no sync, no collaborators. No visitor analytics; error reports only, see <a href="https://bookchaowalit.com/privacy">Privacy</a>.</p>
       </main>
 
       <p className="as-sr" role="status" aria-live="polite">{announcement}</p>
       {removed ? (
         <div
+          ref={toastRef}
           className="as-toast"
+          onMouseEnter={() => setToastHovered(true)}
+          onMouseLeave={() => setToastHovered(false)}
           role="group"
           aria-label="Undo remove"
           onFocus={() => setToastFocused(true)}

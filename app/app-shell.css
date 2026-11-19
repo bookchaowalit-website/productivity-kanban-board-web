@@ -321,3 +321,27 @@
 
 /* The top bar is sticky: keep skip-link targets and keyboard-focused controls clear of it when the page scrolls to them. */
 html { scroll-padding-top: 64px; scroll-padding-bottom: 16px; }
+
+/* Review 2026-11-18. */
+/* While the Undo toast shows, the page reserves its height (set from board.tsx) so nothing focusable stays under it. */
+html { scroll-padding-bottom: calc(16px + var(--as-toast-space, 0px)); }
+.as { padding-bottom: var(--as-toast-space, 0px); }
+/* The chosen segment needs a 3:1 cue, not only a white chip on the grey track (1.22:1): a 2px bar in --as-button
+   (3.9:1 on the light chip, 4.3:1 on the dark one). */
+.as-segmented button[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--as-button), 0 1px 3px rgb(0 0 0 / 12%); }
+.as-segmented button:hover:not([aria-pressed="true"]) { background: var(--as-hover); }
+/* Dark mode: the toast sits on a #000 page with no shadow; a light edge keeps it apart. */
+@media (prefers-color-scheme: dark) { .as-toast { background: #2c2c2e; border: 1px solid rgb(255 255 255 / 16%); } }
+/* Disabled filled buttons: a solid grey chip (--as-grey on --as-selected, 6.5:1) instead of 40% opacity (about 1.8:1). */
+.as-button:disabled { opacity: 1; background: var(--as-selected); color: var(--as-grey); }
+.as-field-hint { margin-top: -6px; font-size: 13px; }
+/* Move up, Move down and Remove stay together at the end of the action row (and wrap as one group). */
+.as-card-tools { display: inline-flex; margin-left: auto; }
+.as-card-actions .as-card-tools .as-icon { margin-left: 0; }
+.as-plain.as-icon.as-order:hover:not(:disabled) { color: var(--as-fg); }
+.as-plain.as-icon.as-order:disabled { color: var(--as-line); cursor: default; background: transparent; }
+@media (forced-colors: active) {
+  .as-segmented button[aria-pressed="true"] { border: 2px solid Highlight; }
+  .as-plain.as-icon.as-order:disabled { color: GrayText; }
+}
+.as-note a { color: var(--as-accent); text-underline-offset: 3px; }

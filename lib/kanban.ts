@@ -107,3 +107,18 @@ export function restoreCard(cards: Card[], card: Card, beforeId: string | null, 
   const at = before >= 0 ? before : after >= 0 ? after + 1 : fallback;
   return [...cards.slice(0, at), card, ...cards.slice(at)];
 }
+
+/**
+ * Swap a card with its neighbour in the same column (-1 = up, 1 = down). Cards in other columns keep their places.
+ * A card already at the top or bottom of its column, or a missing card, changes nothing (same array back).
+ */
+export function reorderCard(cards: Card[], id: string, direction: -1 | 1): Card[] {
+  const from = cards.findIndex((card) => card.id === id);
+  if (from === -1) return cards;
+  let to = from + direction;
+  while (to >= 0 && to < cards.length && cards[to].column !== cards[from].column) to += direction;
+  if (to < 0 || to >= cards.length) return cards;
+  const next = [...cards];
+  [next[from], next[to]] = [next[to], next[from]];
+  return next;
+}

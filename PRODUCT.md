@@ -29,14 +29,14 @@ A portfolio visitor, or one person in one browser, who wants a small to-do / doi
 - No drag and drop (no DnD library), no custom or extra columns, no keyboard shortcuts, no multiple boards
   (claims removed from the portfolio card in the 2026-10 review).
 - No account, collaborators, sync, attachments or export. Clearing site data removes everything.
-- No product analytics beyond Vercel Analytics.
+- No visitor analytics (Vercel Analytics and Speed Insights removed 2026-11-19); only Sentry error reports.
 
 ## Known limits
 
 Two tabs of the same browser share one saved board. Writes build on the latest saved data and skip when nothing
 changed, but a tab only redraws when the browser delivers the `storage` event. So:
 
-- **Undo lasts 6 seconds** (one batch for every removal in the window; paused while focus is in the toast). After that
+- **Undo lasts 6 seconds** (one batch for every removal in the window; paused while focus is in the toast or a mouse pointer rests on it). After that
   a removed card is gone; there is no trash (App shell design).
 - **Moving a card another tab just deleted** moves nothing, but the board still announces the move and, on a phone,
   focuses the destination column's switch.

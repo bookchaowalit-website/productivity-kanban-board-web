@@ -91,7 +91,9 @@ describe("moving and editing", () => {
     press($('[aria-label="Move Write README to Doing"]')!);
     expect(titles("todo")).toEqual([]);
     expect(titles("doing")).toContain("Write README");
-    expect(document.activeElement?.getAttribute("aria-label")).toBe("Write README");
+    expect(document.activeElement?.id).toBe("card-1");
+    // The card item has no name of its own: its title field names it, so a reader does not hear the title twice.
+    expect(document.activeElement?.hasAttribute("aria-label")).toBe(false);
     expect(host.textContent).toContain("Nothing to do. Press New card to add one.");
     press($('[aria-label="Move Write README to Done"]')!);
     expect(host.textContent).toContain("3 cards · 2 done");
@@ -262,5 +264,71 @@ describe("field edges", () => {
     const rule = css.slice(css.indexOf(".as-card-title, .as-card-note {"), css.indexOf("}", css.indexOf(".as-card-title, .as-card-note {")));
     expect(rule).toContain("border: 1px solid var(--as-field-line)");
     expect(rule).not.toContain("transparent");
+  });
+});
+
+describe("review 2026-11-18", () => {
+  function addCard(title: string) {
+    press(button("New card"));
+    type($<HTMLInputElement>(".as-composer input")!, title);
+    press(button("Add", $(".as-composer")!));
+  }
+
+  it("explains why Add is disabled, tied to the Title field", () => {
+    press(button("New card"));
+    const input = $<HTMLInputElement>(".as-composer input")!;
+    expect(input.getAttribute("aria-describedby")).toBe("title-hint");
+    expect($("#title-hint")!.textContent).toBe("A title is required to add the card.");
+    type($<HTMLTextAreaElement>(".as-composer textarea")!, "only a note");
+    expect(button("Add", $(".as-composer")!).disabled).toBe(true);
+    type(input, "Now with a title");
+    expect($("#title-hint")!.textContent).toBe("Add puts the card at the bottom of its column.");
+  });
+
+  it("Move up / Move down reorder cards within a column, keep focus on the button and are saved", () => {
+    narrow(false);
+    addCard("Second");
+    addCard("Third");
+    expect(titles("todo")).toEqual(["Write README", "Second", "Third"]);
+    expect($<HTMLButtonElement>('[aria-label="Move Write README up"]')!.disabled).toBe(true);
+    expect($<HTMLButtonElement>('[aria-label="Move Third down"]')!.disabled).toBe(true);
+    press($('[aria-label="Move Third up"]')!);
+    expect(titles("todo")).toEqual(["Write README", "Third", "Second"]);
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Move Third up");
+    expect(host.querySelector('[role="status"]')!.textContent).toBe("Moved “Third” up, 2 of 3 in To do.");
+    press($('[aria-label="Move Third up"]')!);
+    expect(titles("todo")).toEqual(["Third", "Write README", "Second"]);
+    // At the top the Up button is disabled, so focus moves to Down.
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Move Third down");
+    expect(saved().filter((c: { column: string }) => c.column === "todo").map((c: { title: string }) => c.title)).toEqual(["Third", "Write README", "Second"]);
+    press($('[aria-label="Move Second up"]')!);
+    expect(titles("todo")).toEqual(["Third", "Second", "Write README"]);
+    expect(titles("doing")).toEqual(["Ship utility batch"]);
+  });
+
+  it("the Undo toast stays while a mouse pointer rests on it and leaving starts a fresh 6 s", () => {
+    vi.useFakeTimers();
+    press($('[aria-label="Remove Write README"]')!, 1);
+    const toast = $(".as-toast")!;
+    act(() => { toast.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: document.body })); });
+    act(() => { vi.advanceTimersByTime(20000); });
+    expect($(".as-toast")).not.toBeNull();
+    act(() => { toast.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })); });
+    act(() => { vi.advanceTimersByTime(5900); });
+    expect($(".as-toast")).not.toBeNull();
+    act(() => { vi.advanceTimersByTime(200); });
+    expect($(".as-toast")).toBeNull();
+  });
+
+  it("reserves the toast's height at the bottom of the page while it shows", () => {
+    press($('[aria-label="Remove Write README"]')!, 1);
+    expect(document.documentElement.style.getPropertyValue("--as-toast-space")).toMatch(/px$/);
+    press(button("Undo", $(".as-toast")!));
+    expect(document.documentElement.style.getPropertyValue("--as-toast-space")).toBe("");
+  });
+
+  it("says no visitor analytics run, with a Privacy link", () => {
+    expect($(".as-note")!.textContent).toContain("No visitor analytics");
+    expect($<HTMLAnchorElement>(".as-note a")!.href).toBe("https://bookchaowalit.com/privacy");
   });
 });
