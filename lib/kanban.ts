@@ -96,25 +96,49 @@ export function nextColumn(column: ColumnId, direction: -1 | 1): ColumnId | null
   return COLUMNS[COLUMNS.findIndex((c) => c.id === column) + direction]?.id ?? null;
 }
 
-/** Put a removed card back before its old neighbour (or at the end when the neighbour is gone); never twice. */
-export function restoreCard(cards: Card[], card: Card, beforeId: string | null, afterId: string | null = null, index?: number): Card[] {
+/**
+ * Put a removed card back in its own column, never twice. `beforeId` / `afterId` are its old next and previous cards
+ * in that column and `index` its old place in the column, so the order of other columns never matters. Before the old
+ * next card if it is still in the column; else right after the old previous one (so cards added since stay after it);
+ * else at its old place in the column; else at the end of the column. When the column is empty, `at` (its old place in
+ * the whole list) keeps the saved order stable; column order is the same either way.
+ */
+export function restoreCard(cards: Card[], card: Card, beforeId: string | null, afterId: string | null = null, index?: number, at?: number): Card[] {
   if (cards.some((c) => c.id === card.id)) return cards;
-  // Before the old next card; else right after the old previous card (so cards added since stay after it); else at
-  // its old index; else at the end.
-  const before = beforeId ? cards.findIndex((c) => c.id === beforeId) : -1;
-  const after = before < 0 && afterId ? cards.findIndex((c) => c.id === afterId) : -1;
-  const fallback = index === undefined ? cards.length : Math.min(Math.max(index, 0), cards.length);
-  const at = before >= 0 ? before : after >= 0 ? after + 1 : fallback;
-  return [...cards.slice(0, at), card, ...cards.slice(at)];
+  const inColumn = (id: string | null) => (id ? cards.findIndex((c) => c.id === id && c.column === card.column) : -1);
+  const before = inColumn(beforeId);
+  const after = before < 0 ? inColumn(afterId) : -1;
+  let position: number;
+  if (before >= 0) position = before;
+  else if (after >= 0) position = after + 1;
+  else {
+    const slots = cards.flatMap((c, i) => (c.column === card.column ? [i] : []));
+    const slot = index === undefined ? slots.length : Math.min(Math.max(index, 0), slots.length);
+    if (slot < slots.length) position = slots[slot];
+    else if (slots.length) position = slots[slots.length - 1] + 1;
+    else position = at === undefined ? cards.length : Math.min(Math.max(at, 0), cards.length);
+  }
+  return [...cards.slice(0, position), card, ...cards.slice(position)];
+}
+
+/** Where a card sits in its own column: the next and previous cards there and its place, for restoreCard. */
+export function columnPlace(cards: Card[], id: string): { beforeId: string | null; afterId: string | null; index: number; at: number } | null {
+  const card = cards.find((c) => c.id === id);
+  if (!card) return null;
+  const column = cardsIn(cards, card.column);
+  const index = column.findIndex((c) => c.id === id);
+  return { beforeId: column[index + 1]?.id ?? null, afterId: column[index - 1]?.id ?? null, index, at: cards.indexOf(card) };
 }
 
 /**
  * Swap a card with its neighbour in the same column (-1 = up, 1 = down). Cards in other columns keep their places.
- * A card already at the top or bottom of its column, or a missing card, changes nothing (same array back).
+ * A card already at the top or bottom of its column, a missing card, or one no longer in `column`, changes nothing
+ * (same array back).
  */
-export function reorderCard(cards: Card[], id: string, direction: -1 | 1): Card[] {
+export function reorderCard(cards: Card[], id: string, direction: -1 | 1, column?: ColumnId): Card[] {
   const from = cards.findIndex((card) => card.id === id);
-  if (from === -1) return cards;
+  // `column` is the column the button was pressed in: if another tab moved the card on, reorder nothing.
+  if (from === -1 || (column !== undefined && cards[from].column !== column)) return cards;
   let to = from + direction;
   while (to >= 0 && to < cards.length && cards[to].column !== cards[from].column) to += direction;
   if (to < 0 || to >= cards.length) return cards;

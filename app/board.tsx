@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { AppFoot, AppTop, PlusIcon, type Tone } from "@/components/app-shell";
-import { COLUMNS, STORAGE_KEY, addCard, cardsIn, columnLabel, deleteCard, moveCardTo, nextColumn, parseCards, reorderCard, restoreCard, serializeCards, updateCard, type Card, type ColumnId } from "@/lib/kanban";
+import { COLUMNS, STORAGE_KEY, addCard, cardsIn, columnPlace, columnLabel, deleteCard, moveCardTo, nextColumn, parseCards, reorderCard, restoreCard, serializeCards, updateCard, type Card, type ColumnId } from "@/lib/kanban";
 import { createLocalStore, useLocalStore } from "@/lib/local-store";
 
 const store = createLocalStore(STORAGE_KEY, parseCards, serializeCards);
@@ -10,7 +10,7 @@ const TONE: Record<ColumnId, Tone> = { todo: "grey", doing: "amber", done: "gree
 const EMPTY: Record<ColumnId, string> = { todo: "Nothing to do. Press New card to add one.", doing: "Nothing in progress. Start a card from To do.", done: "Nothing done yet." };
 // Below this width the board shows one column at a time, picked with the segmented control.
 const NARROW = "(max-width: 899px)";
-type RemovedEntry = { card: Card; beforeId: string | null; afterId: string | null; index: number };
+type RemovedEntry = { card: Card; beforeId: string | null; afterId: string | null; index: number; at: number };
 type RemovedBatch = { items: RemovedEntry[]; viaKeyboard: boolean };
 const removedLabel = (items: RemovedEntry[]) => (items.length === 1 ? `Removed “${items[0].card.title}”` : `Removed ${items.length} cards`);
 
@@ -46,7 +46,7 @@ export default function Board() {
   const toastRef = useRef<HTMLDivElement>(null);
   // After Move up/down, keep focus on the same card's button (or its other arrow once it reaches the end).
   const [reordered, setReordered] = useState<{ id: string; direction: -1 | 1; seq: number } | null>(null);
-  const [moved, setMoved] = useState<{ id: string; column: ColumnId } | null>(null);
+  const [moved, setMoved] = useState<{ id: string; column: ColumnId; viaKeyboard: boolean } | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
   const newRef = useRef<HTMLButtonElement>(null);
@@ -98,7 +98,9 @@ export default function Board() {
     const narrow = typeof window.matchMedia === "function" && window.matchMedia(NARROW).matches;
     const target = document.getElementById(narrow ? `show-${moved.column}` : `card-${moved.id}`);
     target?.focus({ preventScroll: true });
-    if (!narrow) target?.scrollIntoView?.({ block: "nearest" });
+    // On a phone a keyboard move lands on the column switch, which may be scrolled off the top: bring it into view so
+    // the focus can be seen. A tap keeps the page where it is.
+    if (!narrow || moved.viaKeyboard) target?.scrollIntoView?.({ block: "nearest" });
   }, [moved]);
 
   function closeComposer() {
@@ -119,19 +121,21 @@ export default function Board() {
     setAnnouncement(`Added “${draft.title.trim()}” to ${columnLabel(draft.column)}.`);
     closeComposer();
   }
-  function move(card: Card, to: ColumnId) {
+  function move(card: Card, to: ColumnId, viaKeyboard = false) {
     // The button names its destination, so the card goes there, even if another tab moved it since
     // this render (no extra step on to the next column). The title comes from the latest value.
     const latest = store.getSnapshot().find((entry) => entry.id === card.id);
     if (!latest) return;
     setCards((current) => moveCardTo(current, card.id, to));
     setAnnouncement(`Moved “${latest.title}” to ${columnLabel(to)}.`);
-    setMoved({ id: card.id, column: to });
+    setMoved({ id: card.id, column: to, viaKeyboard });
   }
   function reorder(card: Card, direction: -1 | 1) {
     const latest = store.getSnapshot().find((entry) => entry.id === card.id);
     if (!latest) return;
-    setCards((current) => reorderCard(current, card.id, direction));
+    // Only within the column the button was pressed in: another tab may have moved the card since this render.
+    if (latest.column !== card.column) return;
+    setCards((current) => reorderCard(current, card.id, direction, card.column));
     const list = cardsIn(store.getSnapshot(), latest.column);
     const position = list.findIndex((entry) => entry.id === card.id) + 1;
     setAnnouncement(`Moved “${latest.title}” ${direction < 0 ? "up" : "down"}, ${position} of ${list.length} in ${columnLabel(latest.column)}.`);
@@ -145,7 +149,8 @@ export default function Board() {
       const index = current.findIndex((item) => item.id === card.id);
       // Already deleted in another tab: nothing to remove, and no Undo that would bring it back.
       if (index === -1) return current;
-      entry = { card: current[index], beforeId: current[index + 1]?.id ?? null, afterId: current[index - 1]?.id ?? null, index };
+      // Neighbours and place within the card's own column, so reordering other columns cannot move it on Undo.
+      entry = { card: current[index], ...columnPlace(current, card.id)! };
       return deleteCard(current, card.id);
     });
     if (!entry) return;
@@ -171,7 +176,7 @@ export default function Board() {
     const items = removedRef.current?.items;
     if (!items?.length) return;
     // Latest removal first, so each card goes back before the card that followed it at the time.
-    setCards((current) => items.reduceRight((list, { card, beforeId, afterId, index }) => restoreCard(list, card, beforeId, afterId, index), current));
+    setCards((current) => items.reduceRight((list, { card, beforeId, afterId, index, at }) => restoreCard(list, card, beforeId, afterId, index, at), current));
     setAnnouncement(items.length === 1 ? `Restored “${items[0].card.title}”.` : `Restored ${items.length} cards.`);
     closeToast();
   }
@@ -243,8 +248,8 @@ export default function Board() {
                           <textarea className="as-card-note" aria-label={`Note for ${card.title}`} rows={1} placeholder="Add a note" value={card.notes} onChange={(event) => setCards((current) => updateCard(current, card.id, { notes: event.target.value }))} />
                         </div>
                         <div className="as-card-actions">
-                          {back ? <button type="button" className="as-plain" aria-label={`Move ${card.title} back to ${columnLabel(back)}`} onClick={() => move(card, back)}><Chevron back />{columnLabel(back)}</button> : null}
-                          {forward ? <button type="button" className="as-plain" aria-label={`Move ${card.title} to ${columnLabel(forward)}`} onClick={() => move(card, forward)}>{columnLabel(forward)}<Chevron /></button> : null}
+                          {back ? <button type="button" className="as-plain" aria-label={`Move ${card.title} back to ${columnLabel(back)}`} onClick={(event) => move(card, back, event.detail === 0)}><Chevron back />{columnLabel(back)}</button> : null}
+                          {forward ? <button type="button" className="as-plain" aria-label={`Move ${card.title} to ${columnLabel(forward)}`} onClick={(event) => move(card, forward, event.detail === 0)}>{columnLabel(forward)}<Chevron /></button> : null}
                           <span className="as-card-tools">
                             <button type="button" id={`up-${card.id}`} className="as-plain as-icon as-order" aria-label={`Move ${card.title} up`} disabled={index === 0} onClick={() => reorder(card, -1)}><Arrow up /></button>
                             <button type="button" id={`down-${card.id}`} className="as-plain as-icon as-order" aria-label={`Move ${card.title} down`} disabled={index === list.length - 1} onClick={() => reorder(card, 1)}><Arrow /></button>

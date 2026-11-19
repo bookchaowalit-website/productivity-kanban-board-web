@@ -50,7 +50,9 @@ describe("remove under a concurrent save", () => {
     expect(saved().map((card) => card.id)).toEqual([...INITIAL_CARDS.slice(1).map((card) => card.id), "other-tab"]);
     const undo = [...host.querySelectorAll("button")].find((b) => b.textContent === "Undo")!;
     act(() => { undo.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })); });
-    expect(saved().map((card) => card.id)).toEqual([...INITIAL_CARDS.map((card) => card.id), "other-tab"]);
-    expect(saved()[0].notes).toBe("Edited elsewhere");
+    // Undo restores within the card's column: first back on top of To do, above the other tab's card.
+    expect(saved().filter((card) => card.column === "todo").map((card) => card.id)).toEqual([first.id, "other-tab"]);
+    expect(saved().map((card) => card.id).sort()).toEqual([...INITIAL_CARDS.map((card) => card.id), "other-tab"].sort());
+    expect(saved().find((card) => card.id === first.id)!.notes).toBe("Edited elsewhere");
   });
 });

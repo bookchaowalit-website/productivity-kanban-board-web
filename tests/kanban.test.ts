@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  columnPlace,
   reorderCard,
   COLUMNS,
   columnLabel,
@@ -88,20 +89,41 @@ describe("App shell helpers", () => {
     expect(nextColumn("done", 1)).toBeNull();
   });
 
-  it("restoreCard falls back to the old previous card, then the old index, so cards added since stay after it", () => {
-    const [a, b] = INITIAL_CARDS;
-    const added = { ...b, id: "new" };
-    expect(restoreCard([a, added], b, null, a.id).map((c) => c.id)).toEqual([a.id, b.id, "new"]);
-    expect(restoreCard([added], a, null, null, 0).map((c) => c.id)).toEqual([a.id, "new"]);
-    expect(restoreCard([added], a, null, "gone", 7).map((c) => c.id)).toEqual(["new", a.id]);
+  // restoreCard works inside the card's own column (neighbours and index are column-local).
+  const t = (id: string): Card => ({ id, title: id, notes: "", column: "todo" });
+  const d = (id: string): Card => ({ id, title: id, notes: "", column: "doing" });
+
+  it("restoreCard falls back to the old previous card, then the old place in the column, so cards added since stay after it", () => {
+    expect(restoreCard([t("a"), t("new")], t("b"), null, "a").map((c) => c.id)).toEqual(["a", "b", "new"]);
+    expect(restoreCard([d("x"), t("new")], t("a"), null, null, 0).map((c) => c.id)).toEqual(["x", "a", "new"]);
+    expect(restoreCard([t("new")], t("a"), null, "gone", 7).map((c) => c.id)).toEqual(["new", "a"]);
+  });
+
+  it("restoreCard ignores neighbours that are now in another column and other columns' order", () => {
+    // Old next card "b" moved to Doing: fall back to the old place in To do (top), not before "b".
+    expect(restoreCard([d("b"), t("c")], t("a"), "b", null, 0).map((c) => c.id)).toEqual(["b", "a", "c"]);
+    // Empty column: the old place in the whole list keeps the saved order stable.
+    expect(restoreCard([d("x"), d("y")], t("a"), null, null, 0, 0).map((c) => c.id)).toEqual(["a", "x", "y"]);
+    expect(restoreCard([d("x")], t("a"), null, null, 0).map((c) => c.id)).toEqual(["x", "a"]);
   });
 
   it("restoreCard puts a card back before its neighbour, at the end without one, and never twice", () => {
-    const [a, b] = INITIAL_CARDS;
-    expect(restoreCard([b], a, b.id).map((c) => c.id)).toEqual([a.id, b.id]);
-    expect(restoreCard([b], a, null).map((c) => c.id)).toEqual([b.id, a.id]);
-    expect(restoreCard([b], a, "gone").map((c) => c.id)).toEqual([b.id, a.id]);
-    expect(restoreCard([a, b], a, b.id)).toHaveLength(2);
+    expect(restoreCard([t("b")], t("a"), "b").map((c) => c.id)).toEqual(["a", "b"]);
+    expect(restoreCard([t("b")], t("a"), null).map((c) => c.id)).toEqual(["b", "a"]);
+    expect(restoreCard([t("b")], t("a"), "gone").map((c) => c.id)).toEqual(["b", "a"]);
+    expect(restoreCard([t("a"), t("b")], t("a"), "b")).toHaveLength(2);
+  });
+
+  it("columnPlace reports column-local neighbours, index and the place in the whole list", () => {
+    const list = [t("a"), d("x"), t("b"), t("c")];
+    expect(columnPlace(list, "b")).toEqual({ beforeId: "c", afterId: "a", index: 1, at: 2 });
+    expect(columnPlace(list, "nope")).toBeNull();
+  });
+
+  it("reorderCard does nothing when the card already left the column the button was in", () => {
+    const list = [t("a"), d("x"), d("y")];
+    expect(reorderCard(list, "y", -1, "todo")).toBe(list);
+    expect(reorderCard(list, "y", -1, "doing").map((c) => c.id)).toEqual(["a", "y", "x"]);
   });
 });
 

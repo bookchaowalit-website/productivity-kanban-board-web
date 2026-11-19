@@ -332,3 +332,50 @@ describe("review 2026-11-18", () => {
     expect($<HTMLAnchorElement>(".as-note a")!.href).toBe("https://bookchaowalit.com/privacy");
   });
 });
+
+describe("Codex review 2026-11-19", () => {
+  function addTo(column: string, title: string) {
+    press(button("New card"));
+    type($<HTMLInputElement>(".as-composer input")!, title);
+    press(button(column, $(".as-composer")!));
+    press(button("Add", $(".as-composer")!));
+  }
+
+  it("Undo puts a card back at its place in its own column, whatever happened in other columns", () => {
+    narrow(false);
+    addTo("To do", "Later todo");
+    addTo("Doing", "Later doing");
+    press($('[aria-label="Remove Write README"]')!, 1);
+    press($('[aria-label="Move Later doing up"]')!);
+    expect(titles("doing")).toEqual(["Later doing", "Ship utility batch"]);
+    press(button("Undo", $(".as-toast")!));
+    expect(titles("todo")).toEqual(["Write README", "Later todo"]);
+    expect(titles("doing")).toEqual(["Later doing", "Ship utility batch"]);
+  });
+
+  it("on a phone a keyboard move scrolls the focused column switch into view; a tap does not scroll", () => {
+    narrow(true);
+    const scrolled: string[] = [];
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) { scrolled.push(this.id); };
+    try {
+      press($('[aria-label="Move Write README to Doing"]')!, 1);
+      expect(document.activeElement?.id).toBe("show-doing");
+      expect(scrolled).toEqual([]);
+      press($('[aria-label="Move Write README to Done"]')!, 0);
+      expect(document.activeElement?.id).toBe("show-done");
+      expect(scrolled).toEqual(["show-done"]);
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("Move up does nothing when another tab already moved the card to another column", () => {
+    narrow(false);
+    addTo("To do", "Second");
+    const list = saved().map((c: { title: string; column: string }) => (c.title === "Second" ? { ...c, column: "done" } : c));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    press($('[aria-label="Move Second up"]')!);
+    expect(saved().filter((c: { column: string }) => c.column === "done").map((c: { title: string }) => c.title)).toEqual(["Fix flagships", "Second"]);
+  });
+});
