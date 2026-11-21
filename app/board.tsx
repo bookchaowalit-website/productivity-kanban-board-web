@@ -63,11 +63,11 @@ export default function Board() {
     wasComposing.current = composing;
   }, [composing]);
   useEffect(() => { if (removed?.viaKeyboard) undoRef.current?.focus(); }, [removed]);
-  // The toast closes 6 s after the latest removal (each removal restarts it), but never while it holds focus or a
-  // mouse pointer rests on it (WCAG 2.2.1): leaving it starts a fresh 6 s.
+  // The toast closes 10 s after the latest removal (each removal restarts it), but never while it holds focus or a
+  // mouse pointer rests on it (WCAG 2.2.1): leaving it starts a fresh 10 s.
   useEffect(() => {
     if (!removed || toastFocused || toastHovered) return;
-    const timer = window.setTimeout(() => { removedRef.current = null; setRemovedState(null); setToastHovered(false); }, 6000);
+    const timer = window.setTimeout(() => { removedRef.current = null; setRemovedState(null); setToastHovered(false); }, 10000);
     return () => window.clearTimeout(timer);
   }, [removed, toastFocused, toastHovered]);
   // While the toast shows, reserve its height (plus its 24px offset and a gap) at the bottom of the page and in
@@ -157,7 +157,7 @@ export default function Board() {
     // Join the batch of removals still inside the Undo window.
     const items = [...(removedRef.current?.items ?? []), entry];
     setRemoved({ items, viaKeyboard });
-    setAnnouncement(`${removedLabel(items)}. Undo is available for a few seconds.`);
+    setAnnouncement(`${removedLabel(items)}. Undo is available for at least 10 seconds.`);
   }
   function leaveTitle(id: string) {
     const typed = typedTitles.current.get(id);

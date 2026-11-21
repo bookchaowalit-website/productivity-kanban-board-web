@@ -221,7 +221,7 @@ describe("remove and undo", () => {
     expect(saved()).toEqual(without);
   });
 
-  it("Escape dismisses; the toast waits while focused and closes six seconds after focus leaves; with the composer open focus goes to it", () => {
+  it("Escape dismisses; the toast waits while focused and closes ten seconds after focus leaves; with the composer open focus goes to it", () => {
     press($('[aria-label="Remove Write README"]')!, 0);
     act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
     expect($(".as-toast")).toBeNull();
@@ -230,7 +230,9 @@ describe("remove and undo", () => {
     act(() => { vi.advanceTimersByTime(7000); });
     expect($(".as-toast")).not.toBeNull();
     act(() => { button("New card").focus(); });
-    act(() => { vi.advanceTimersByTime(6000); });
+    act(() => { vi.advanceTimersByTime(9999); });
+    expect($(".as-toast")).not.toBeNull();
+    act(() => { vi.advanceTimersByTime(1); });
     expect($(".as-toast")).toBeNull();
     press($('[aria-label="Remove Ship utility batch"]')!, 0);
     press(button("New card"));
@@ -306,7 +308,7 @@ describe("review 2026-11-18", () => {
     expect(titles("doing")).toEqual(["Ship utility batch"]);
   });
 
-  it("the Undo toast stays while a mouse pointer rests on it and leaving starts a fresh 6 s", () => {
+  it("the Undo toast stays while a mouse pointer rests on it and leaving starts a fresh 10 s", () => {
     vi.useFakeTimers();
     press($('[aria-label="Remove Write README"]')!, 1);
     const toast = $(".as-toast")!;
@@ -314,9 +316,9 @@ describe("review 2026-11-18", () => {
     act(() => { vi.advanceTimersByTime(20000); });
     expect($(".as-toast")).not.toBeNull();
     act(() => { toast.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })); });
-    act(() => { vi.advanceTimersByTime(5900); });
+    act(() => { vi.advanceTimersByTime(9900); });
     expect($(".as-toast")).not.toBeNull();
-    act(() => { vi.advanceTimersByTime(200); });
+    act(() => { vi.advanceTimersByTime(100); });
     expect($(".as-toast")).toBeNull();
   });
 
