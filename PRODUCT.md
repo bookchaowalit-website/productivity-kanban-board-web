@@ -36,7 +36,7 @@ A portfolio visitor, or one person in one browser, who wants a small to-do / doi
 Two tabs of the same browser share one saved board. Writes build on the latest saved data and skip when nothing
 changed, but a tab only redraws when the browser delivers the `storage` event. So:
 
-- **Undo lasts 6 seconds** (one batch for every removal in the window; paused while focus is in the toast or a mouse pointer rests on it). After that
+- **Undo lasts at least 10 seconds** (one batch for every removal in the window; the timer restarts after each removal and pauses while focus is in the toast or a mouse pointer rests on it). After that
   a removed card is gone; there is no trash (App shell design).
 - **Moving a card another tab just deleted** moves nothing, but the board still announces the move and, on a phone,
   focuses the destination column's switch.
